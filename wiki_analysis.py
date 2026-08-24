@@ -16,16 +16,43 @@ df.printSchema()
 # 4. Register as a Virtual Database Table for SQL Queries
 df.createOrReplaceTempView("clickstream")
 
-# 5. Execute SQL Query: Find top traffic sources to "Apache_Spark"
-print("\n--- TOP TRAFFIC SOURCES TO APACHE_SPARK ---")
+# 5. EXECUTE ADVANCED SQL QUERIES
+
+# QUERY A: Find the Top 5 Most Visited Articles on Wikipedia overall
+print("\n=== TOP 5 MOST VISITED ARTICLES OVERALL ===")
 spark.sql("""
-    SELECT referrer, SUM(count) as total_clicks
+    SELECT resource as article_name, SUM(count) as total_views
     FROM clickstream
-    WHERE resource = 'Apache_Spark'
+    GROUP BY resource
+    ORDER BY total_views DESC
+    LIMIT 5
+""").show()
+
+# QUERY B: Find Top 5 Internal Search Results (Referred by "Special:Search")
+# This shows what people are actively looking up to land on articles
+print("\n=== TOP 5 ARTICLES FOUND VIA INTERNAL SEARCH ===")
+spark.sql("""
+    SELECT resource as searched_article, SUM(count) as search_clicks
+    FROM clickstream
+    WHERE referrer = 'Special:Search'
+    GROUP BY resource
+    ORDER BY search_clicks DESC
+    LIMIT 5
+""").show()
+
+# QUERY C: Find Top 5 External Traffic Referrers (Excluding internal wiki clicks)
+# Proves you can handle negative filtering logic (NOT LIKE / NOT IN)
+print("\n=== TOP 5 EXTERNAL TRAFFIC DRIVERS ===")
+spark.sql("""
+    SELECT referrer, SUM(count) as external_clicks
+    FROM clickstream
+    WHERE referrer NOT IN ('Main_Page', 'Special:Search', 'Wikipedia') 
+      AND referrer NOT LIKE '%_page%'
     GROUP BY referrer
-    ORDER BY total_clicks DESC
+    ORDER BY external_clicks DESC
     LIMIT 5
 """).show()
 
 # 6. Safely shut down Spark engine
 spark.stop()
+
